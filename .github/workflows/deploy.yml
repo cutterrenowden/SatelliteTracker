@@ -1,0 +1,71 @@
+name: build c file, run, deploy to site
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # every 15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    env:
+      N2YO_API_KEY: ${{ secrets.N2YO_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system deps for C (curl)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libcurl4-openssl-dev
+
+      - name: Build C fetcher
+        working-directory: SatelliteTracker/c
+        run: |
+          make clean || true
+          make
+
+      - name: Run fetcher to update data.json
+        working-directory: SatelliteTracker/c
+        run: |
+          ./satellite sats.txt
+          # copy into React public so Vite will include it
+          cp data.json ../public/data.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: SatelliteTracker/package.json
+
+      - name: Install deps & build site
+        working-directory: SatelliteTracker
+        run: |
+          npm ci
+          npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: SatelliteTracker/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
