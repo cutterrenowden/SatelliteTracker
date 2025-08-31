@@ -1,0 +1,9 @@
+{
+    "scripts": {
+      "fetch:sats": "make -C ../Satellite_C fetch && cp ../Satellite_C/data.json ./public/data.json",
+      "dev": "npm run fetch:sats && vite",
+      "build": "npm run fetch:sats && vite build",
+      "preview": "vite preview"
+    }
+  }
+  
