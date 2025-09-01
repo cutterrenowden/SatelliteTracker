@@ -36,11 +36,11 @@ jobs:
           make -C c clean || true
           make -C c
 
-      # after running: ./c/satellite ./c/sats.txt
-      - name: Copy fresh data.json to public
+      - name: Run fetcher to update data.json
         run: |
+          ./c/satellite ./c/sats.txt
           mkdir -p public
-          cp data.json public/data.json
+          cp c/data.json public/data.json
 
 
       - name: Setup Node
