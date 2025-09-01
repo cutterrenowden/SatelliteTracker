@@ -1,19 +1,12 @@
-CC = gcc
-CFLAGS = -O2 -Wall
-LDFLAGS =
-LIBS = -lcurl              
-SRC = satellite.c cJSON.c
-BIN = satellite
+CC=gcc
+CFLAGS=-O2 -Wall
+LIBS=$(shell pkg-config --libs libcurl)
+CFLAGS+=$(shell pkg-config --cflags libcurl)
 
-all: $(BIN)
+all: satellite
 
-$(BIN): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) $(LDFLAGS) $(LIBS)
-
-# Run the fetcher using sats.txt as input
-# N2YO_API_KEY must be set in your shell (not committed)
-fetch: $(BIN)
-	N2YO_API_KEY=$$N2YO_API_KEY ./$(BIN) ./sats.txt
+satellite: satellite.c cJSON.c
+	$(CC) $(CFLAGS) satellite.c cJSON.c -o satellite $(LIBS)
 
 clean:
-	rm -f $(BIN)
+	rm -f satellite
