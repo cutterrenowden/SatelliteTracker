@@ -1,11 +1,11 @@
-name: Build, fetch satellites, and deploy to Pages
+name: build & deploy
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: "*/12 * * * *"
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
@@ -26,24 +26,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-        # (optional) show the workspace so you can see where files really are
-      - name: Show workspace layout
-        run: |
-          echo "PWD: $(pwd)"
-          find . -maxdepth 3 -type d -print | sed 's/^/DIR /'
-
-      - name: Detect paths
-        id: detect
-        shell: bash
-        run: |
-          if [ -d SatelliteTracker/c ]; then C_DIR="SatelliteTracker/c"; \
-          elif [ -d c ]; then C_DIR="c"; else echo "No C dir found"; exit 1; fi
-          if [ -f SatelliteTracker/package.json ]; then WEB_DIR="SatelliteTracker"; \
-          elif [ -f package.json ]; then WEB_DIR="."; else echo "No package.json found"; exit 1; fi
-          echo "C_DIR=$C_DIR"   >> $GITHUB_OUTPUT
-          echo "WEB_DIR=$WEB_DIR" >> $GITHUB_OUTPUT
-          echo "Using C_DIR=$C_DIR, WEB_DIR=$WEB_DIR"
-
       - name: Install system deps for C (curl)
         run: |
           sudo apt-get update
@@ -51,25 +33,24 @@ jobs:
 
       - name: Build C fetcher
         run: |
-          make -C "${{ steps.detect.outputs.C_DIR }}" clean || true
-          make -C "${{ steps.detect.outputs.C_DIR }}"
+          make -C c clean || true
+          make -C c
 
       - name: Run fetcher to update data.json
         run: |
-          "${{ steps.detect.outputs.C_DIR }}/satellite" "${{ steps.detect.outputs.C_DIR }}/sats.txt"
-          mkdir -p "${{ steps.detect.outputs.WEB_DIR }}/public"
-          cp "${{ steps.detect.outputs.C_DIR }}/data.json" "${{ steps.detect.outputs.WEB_DIR }}/public/data.json"
+          ./c/satellite ./c/sats.txt
+          mkdir -p public
+          cp c/data.json public/data.json
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: "${{ steps.detect.outputs.WEB_DIR }}/package.json"
+          cache-dependency-path: package-lock.json
 
       - name: Install deps & build site
         run: |
-          cd "${{ steps.detect.outputs.WEB_DIR }}"
           npm ci
           npm run build
 
@@ -79,7 +60,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "${{ steps.detect.outputs.WEB_DIR }}/dist"
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment
