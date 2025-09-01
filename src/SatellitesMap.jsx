@@ -3,7 +3,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import React from "react";
 
-const makeSatIcon = (imgUrl = "/sat.png", size = 28) =>
+const base = import.meta.env.BASE_URL;
+
+const makeSatIcon = (imgUrl = `${base}sat.png`, size = 28) =>
   L.divIcon({
     className: "satellite-icon",
     html: `<img src="${imgUrl}" alt="sat" style="width:${size}px;height:${size}px;" />`,
@@ -40,7 +42,7 @@ export default function SatellitesMap({ satellites = [] }) {
           flexShrink: 0,
         }}
       >
-        <img src="/asts_png.png" alt="logo" style={{ height: 40 }} />
+        <img src="{`${base}asts_png.png`} alt="logo" style={{ height: 40 }} />
         <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Satellite Tracker.</h1>
         <div style={{marginLeft: "auto"}}>
           <h1>45-60 Satellites Planned</h1>
