@@ -36,11 +36,32 @@ jobs:
           make -C c clean || true
           make -C c
 
-      - name: Run fetcher to update data.json
+      - name: Run fetcher to update data.json (inside c/)
         run: |
-          ./c/satellite ./c/sats.txt
+          set -euo pipefail
+          pushd c > /dev/null
+          ./satellite sats.txt
+          echo "c/data.json after run:"
+          ls -l --time-style=long-iso data.json
+          (sha256sum data.json || shasum -a 256 data.json) || true
+          head -c 200 data.json; echo
+          popd > /dev/null
+
+      - name: Copy to public/ and show final file
+        run: |
+          set -e
           mkdir -p public
           cp c/data.json public/data.json
+          echo "public/data.json to be deployed:"
+          ls -l --time-style=long-iso public/data.json
+          (sha256sum public/data.json || shasum -a 256 public/data.json) || true
+          head -c 200 public/data.json; echo
+
+      - name: Write build info (timestamp)
+        run: |
+          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "{\"builtAt\":\"$ts\",\"runId\":\"${GITHUB_RUN_ID}\"}" > public/buildinfo.json
+
 
 
       - name: Setup Node
