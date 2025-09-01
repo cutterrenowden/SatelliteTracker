@@ -36,6 +36,25 @@ jobs:
           make -C c clean || true
           make -C c
 
+      - name: Determine Pages URL
+        id: pagesurl
+        run: |
+          OWNER=${GITHUB_REPOSITORY%%/*}
+          REPO=${GITHUB_REPOSITORY#*/}
+          echo "owner=$OWNER" >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+          echo "url=https://$OWNER.github.io/$REPO/data.json" >> $GITHUB_OUTPUT
+          echo "Pages data.json URL: https://$OWNER.github.io/$REPO/data.json"
+
+      - name: Restore previous data.json (if exists)
+        run: |
+          mkdir -p c
+          # Try to fetch last deployed file; if 404/empty, continue
+          curl -fsSL "${{ steps.pagesurl.outputs.url }}" -o c/data.json || echo "No previous data.json on Pages (first run or path mismatch)."
+          echo "Restored c/data.json (if any):"
+          ls -l --time-style=long-iso c/data.json || true
+          head -c 200 c/data.json || true; echo
+
       - name: Run fetcher to update data.json (inside c/)
         run: |
           set -euo pipefail
