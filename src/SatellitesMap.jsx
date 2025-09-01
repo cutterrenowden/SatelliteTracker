@@ -90,13 +90,14 @@ export default function SatellitesMap({ satellites = [] }) {
         pathOptions={{color: "gray", fillColor:"gray", fillOpacity:0.3}}
         />
 
-      <Marker position={[lat, lon]} icon={makeSatIcon(`${base}sat.png`, 28)} />
-        <Popup>
-          <b>{s.satname ?? s.id}</b>
-          <div>lat: {lat.toFixed(4)}</div>
-          <div>lon: {lon.toFixed(4)}</div>
-        </Popup>
-      </Marker>
+      <Marker position={[lat, lon]} icon={makeSatIcon()}>
+  <Popup>
+    <b>{s.satname ?? s.id}</b>
+    <div>lat: {lat.toFixed(4)}</div>
+    <div>lon: {lon.toFixed(4)}</div>
+  </Popup>
+</Marker>
+
     </React.Fragment>
   );
 })}
