@@ -42,7 +42,7 @@ export default function SatellitesMap({ satellites = [] }) {
           flexShrink: 0,
         }}
       >
-        <img src="{`${base}asts_png.png`} alt="logo" style={{ height: 40 }} />
+        <img src={`${base}asts_png.png`} alt="logo" style={{ height: 40 }} />
         <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Satellite Tracker.</h1>
         <div style={{marginLeft: "auto"}}>
           <h1>45-60 Satellites Planned</h1>
@@ -90,7 +90,7 @@ export default function SatellitesMap({ satellites = [] }) {
         pathOptions={{color: "gray", fillColor:"gray", fillOpacity:0.3}}
         />
 
-      <Marker position={[lat, lon]} icon={makeSatIcon("/sat.png", 28)}>
+      <Marker position={[lat, lon]} icon={makeSatIcon(`${base}sat.png`, 28)} />
         <Popup>
           <b>{s.satname ?? s.id}</b>
           <div>lat: {lat.toFixed(4)}</div>
