@@ -13,9 +13,41 @@ const makeSatIcon = (imgUrl = `${base}sat.png`, size = 28) =>
     iconAnchor: [size / 2, size / 2],
   });
 
+const normalizeLon = (lon) => {
+  let x = ((lon + 180) % 360 + 360) % 360 - 180;
+  if (x === -180) x = 180; 
+  return x;
+};
+
+const buildTrailSegments = (hist) => {
+  if (!Array.isArray(hist) || hist.length < 2) return [];
+
+  const pts = hist
+    .slice()
+    .reverse()
+    .map((p) => [p.lat, normalizeLon(p.lon)]);
+
+  const segments = [];
+  let seg = [pts[0]];
+
+  for (let i = 1; i < pts.length; i++) {
+    const [, prevLon] = pts[i - 1];
+    const [lat, lon] = pts[i];
+    const dLon = lon - prevLon;
+
+    if (Math.abs(dLon) > 180) {
+      segments.push(seg);
+      seg = [];
+    }
+    seg.push([lat, lon]);
+  }
+  if (seg.length > 1) segments.push(seg);
+  return segments;
+};
+
 export default function SatellitesMap({ satellites = [] }) {
-  const activeSats = satellites.filter(s => s.status === 1);
-  const inactiveSats = satellites.filter(s => s.status === 0);
+  const activeSats = satellites.filter((s) => s.status === 1);
+  const inactiveSats = satellites.filter((s) => s.status === 0);
 
   const visibleSats = satellites.filter((s) => {
     const lat = s?.location?.lat;
@@ -24,8 +56,10 @@ export default function SatellitesMap({ satellites = [] }) {
       s?.status === 1 &&
       Number.isFinite(lat) &&
       Number.isFinite(lon) &&
-      lat >= -90 && lat <= 90 &&
-      lon >= -180 && lon <= 180
+      lat >= -90 &&
+      lat <= 90 &&
+      lon >= -180 &&
+      lon <= 180
     );
   });
 
@@ -44,64 +78,60 @@ export default function SatellitesMap({ satellites = [] }) {
       >
         <img src={`${base}asts_png.png`} alt="logo" style={{ height: 40 }} />
         <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Satellite Tracker.</h1>
-        <div style={{marginLeft: "auto"}}>
+        <div style={{ marginLeft: "auto" }}>
           <h1>45-60 Satellites Planned</h1>
         </div>
       </header>
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <MapContainer
-            center={[20, 0]}
-            zoom={2}
-            minZoom={2}
-            style={{ height: "100%", width: "100%" }}
-            worldCopyJump
-          >
+          <MapContainer center={[20, 0]} zoom={2} minZoom={2} style={{ height: "100%", width: "100%" }} worldCopyJump>
             <TileLayer
               url="https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
             />
 
-{visibleSats.map((s) => {
-  const { lat, lon } = s.location;
-  const hist = Array.isArray(s.history) ? s.history : [];
+            {visibleSats.map((s) => {
+              const { lat, lon } = s.location;
+              const hist = Array.isArray(s.history) ? s.history : [];
 
-  const trail = hist.slice().reverse().map(p => [p.lat, p.lon]);
+              const segments = buildTrailSegments(hist);
 
-  return (
-    <React.Fragment key={s.id}>
-      {trail.length >= 2 && (
-        <Polyline positions={trail} pathOptions={{ color: "blue", weight: 2, opacity: 0.9 }} />
-      )}
+              return (
+                <React.Fragment key={s.id}>
+                  {segments.map((seg, idx) => (
+                    <Polyline
+                      key={`${s.id}-seg-${idx}`}
+                      positions={seg}
+                      pathOptions={{ color: "blue", weight: 2, opacity: 0.9 }}
+                    />
+                  ))}
 
-      {hist.map((p, i) => (
-        <CircleMarker
-          key={`${s.id}-h-${i}`}
-          center={[p.lat, p.lon]}
-          radius={3}
-          pathOptions={{ color: "white", fillColor: "blue", fillOpacity: 0.9, opacity: 0.9 }}
-        />
-      ))}
+                  {hist.map((p, i) => (
+                    <CircleMarker
+                      key={`${s.id}-h-${i}`}
+                      center={[p.lat, normalizeLon(p.lon)]}
+                      radius={3}
+                      pathOptions={{ color: "white", fillColor: "blue", fillOpacity: 0.9, opacity: 0.9 }}
+                    />
+                  ))}
+                  
+                  <Circle
+                    center={[lat, lon]}
+                    radius={1000000}
+                    pathOptions={{ color: "gray", fillColor: "gray", fillOpacity: 0.3 }}
+                  />
 
-      <Circle 
-        center={[lat, lon]}
-        radius={1000000}
-        pathOptions={{color: "gray", fillColor:"gray", fillOpacity:0.3}}
-        />
-
-      <Marker position={[lat, lon]} icon={makeSatIcon()}>
-  <Popup>
-    <b>{s.satname ?? s.id}</b>
-    <div>lat: {lat.toFixed(4)}</div>
-    <div>lon: {lon.toFixed(4)}</div>
-  </Popup>
-</Marker>
-
-    </React.Fragment>
-  );
-})}
-
+                  <Marker position={[lat, lon]} icon={makeSatIcon()}>
+                    <Popup>
+                      <b>{s.satname ?? s.id}</b>
+                      <div>lat: {lat.toFixed(4)}</div>
+                      <div>lon: {lon.toFixed(4)}</div>
+                    </Popup>
+                  </Marker>
+                </React.Fragment>
+              );
+            })}
           </MapContainer>
         </div>
 
@@ -116,42 +146,37 @@ export default function SatellitesMap({ satellites = [] }) {
           }}
         >
           <h2> Active Satellites</h2>
-          
-          {activeSats.map(s => (
-            <div>
-              <span>
-                {s.satname}
-              </span>
-              <span style={{color: "green"}}> Running </span>
+
+          {activeSats.map((s) => (
+            <div key={`a-${s.id ?? s.satname}`}>
+              <span>{s.satname}</span>
+              <span style={{ color: "green" }}> Running </span>
             </div>
           ))}
-        <h2> Inactive Satellites</h2>
-        {inactiveSats.map(s => (
-          <div>
-            <span>
-              {s.satname}
-            </span>
-            <span style={{color: "red"}}> Decayed </span>
-          </div>
-        ))}
+          <h2> Inactive Satellites</h2>
+          {inactiveSats.map((s) => (
+            <div key={`i-${s.id ?? s.satname}`}>
+              <span>{s.satname}</span>
+              <span style={{ color: "red" }}> Decayed </span>
+            </div>
+          ))}
 
-        <p style={{marginTop: "50px"}}>
-          Connection area
-          <span
-          style={{
-            display: "inline-block",
-            width: "12px",
-            height: "12px",
-            borderRadius: "50%",
-            backgroundColor: "#ccc",
-            border: "2px solid #999",
-            margin: "0 4px",
-            verticalAlign: "middle"
-          }}
-          />
-          is approximate.
-        </p>
-
+          <p style={{ marginTop: "50px" }}>
+            Connection area
+            <span
+              style={{
+                display: "inline-block",
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                backgroundColor: "#ccc",
+                border: "2px solid #999",
+                margin: "0 4px",
+                verticalAlign: "middle",
+              }}
+            />
+            is approximate.
+          </p>
         </aside>
       </div>
     </div>
