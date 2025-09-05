@@ -13,28 +13,25 @@ const makeSatIcon = (imgUrl = `${base}sat.png`, size = 28) =>
     iconAnchor: [size / 2, size / 2],
   });
 
+// --- helpers ---
 const normalizeLon = (lon) => {
   let x = ((lon + 180) % 360 + 360) % 360 - 180;
-  if (x === -180) x = 180; 
+  if (x === -180) x = 180;
   return x;
 };
 
 const buildTrailSegments = (hist) => {
   if (!Array.isArray(hist) || hist.length < 2) return [];
-
   const pts = hist
     .slice()
     .reverse()
     .map((p) => [p.lat, normalizeLon(p.lon)]);
-
   const segments = [];
   let seg = [pts[0]];
-
   for (let i = 1; i < pts.length; i++) {
     const [, prevLon] = pts[i - 1];
     const [lat, lon] = pts[i];
     const dLon = lon - prevLon;
-
     if (Math.abs(dLon) > 180) {
       segments.push(seg);
       seg = [];
@@ -43,6 +40,27 @@ const buildTrailSegments = (hist) => {
   }
   if (seg.length > 1) segments.push(seg);
   return segments;
+};
+
+// Color palette for trails
+const trailColors = [
+  "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+  "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+  "#8F4639", "#9106CD", "#CD06A4", "#CD0642", "#42CD06",
+  "#06CD91"
+];
+
+const getTrailColor = (idOrIndex) => {
+  // Deterministic: hash the id or just cycle by index
+  if (typeof idOrIndex === "number") {
+    return trailColors[idOrIndex % trailColors.length];
+  }
+  // hash string id
+  let hash = 0;
+  for (let i = 0; i < idOrIndex.length; i++) {
+    hash = (hash * 31 + idOrIndex.charCodeAt(i)) >>> 0;
+  }
+  return trailColors[hash % trailColors.length];
 };
 
 export default function SatellitesMap({ satellites = [] }) {
@@ -91,19 +109,19 @@ export default function SatellitesMap({ satellites = [] }) {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
             />
 
-            {visibleSats.map((s) => {
+            {visibleSats.map((s, idx) => {
               const { lat, lon } = s.location;
               const hist = Array.isArray(s.history) ? s.history : [];
-
               const segments = buildTrailSegments(hist);
+              const color = getTrailColor(s.id ?? idx);
 
               return (
                 <React.Fragment key={s.id}>
-                  {segments.map((seg, idx) => (
+                  {segments.map((seg, segIdx) => (
                     <Polyline
-                      key={`${s.id}-seg-${idx}`}
+                      key={`${s.id}-seg-${segIdx}`}
                       positions={seg}
-                      pathOptions={{ color: "blue", weight: 2, opacity: 0.9 }}
+                      pathOptions={{ color, weight: 2, opacity: 0.9 }}
                     />
                   ))}
 
@@ -112,10 +130,10 @@ export default function SatellitesMap({ satellites = [] }) {
                       key={`${s.id}-h-${i}`}
                       center={[p.lat, normalizeLon(p.lon)]}
                       radius={3}
-                      pathOptions={{ color: "white", fillColor: "blue", fillOpacity: 0.9, opacity: 0.9 }}
+                      pathOptions={{ color, fillColor: color, fillOpacity: 0.9, opacity: 0.9 }}
                     />
                   ))}
-                  
+
                   <Circle
                     center={[lat, lon]}
                     radius={1000000}
@@ -146,7 +164,6 @@ export default function SatellitesMap({ satellites = [] }) {
           }}
         >
           <h2> Active Satellites</h2>
-
           {activeSats.map((s) => (
             <div key={`a-${s.id ?? s.satname}`}>
               <span>{s.satname}</span>
