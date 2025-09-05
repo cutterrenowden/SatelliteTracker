@@ -13,36 +13,67 @@ const makeSatIcon = (imgUrl = `${base}sat.png`, size = 28) =>
     iconAnchor: [size / 2, size / 2],
   });
 
-// --- helpers ---
+
 const normalizeLon = (lon) => {
   let x = ((lon + 180) % 360 + 360) % 360 - 180;
   if (x === -180) x = 180;
   return x;
 };
 
+
 const buildTrailSegments = (hist) => {
   if (!Array.isArray(hist) || hist.length < 2) return [];
+
   const pts = hist
     .slice()
     .reverse()
-    .map((p) => [p.lat, normalizeLon(p.lon)]);
+    .map(p => ({ lat: p.lat, lon: normalizeLon(p.lon) }));
+
   const segments = [];
-  let seg = [pts[0]];
+  let seg = [[pts[0].lat, pts[0].lon]];
+
   for (let i = 1; i < pts.length; i++) {
-    const [, prevLon] = pts[i - 1];
-    const [lat, lon] = pts[i];
-    const dLon = lon - prevLon;
-    if (Math.abs(dLon) > 180) {
+    const p1 = pts[i - 1];
+    const p2 = pts[i];
+
+
+    let lon2u = p2.lon;
+    if (lon2u - p1.lon > 180) lon2u -= 360;
+    else if (lon2u - p1.lon < -180) lon2u += 360;
+
+    const dLon = lon2u - p1.lon;
+
+    const crossesPos = (p1.lon <= 180 && lon2u > 180);
+    const crossesNeg = (p1.lon >= -180 && lon2u < -180);
+
+    if (crossesPos || crossesNeg) {
+      const boundary = crossesPos ? 180 : -180;
+
+
+      const t = (boundary - p1.lon) / dLon; // 0..1
+      const latAtBoundary = p1.lat + t * (p2.lat - p1.lat);
+
+      seg.push([latAtBoundary, boundary]);
       segments.push(seg);
-      seg = [];
+
+
+      const opposite = -boundary; 
+      seg = [[latAtBoundary, opposite]];
+
+
+      const finalLon = normalizeLon(lon2u - Math.sign(boundary) * 360); 
+      seg.push([p2.lat, finalLon]);
+    } else {
+
+      seg.push([p2.lat, normalizeLon(lon2u)]);
     }
-    seg.push([lat, lon]);
   }
+
   if (seg.length > 1) segments.push(seg);
   return segments;
 };
 
-// Color palette for trails
+
 const trailColors = [
   "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
   "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
@@ -51,11 +82,11 @@ const trailColors = [
 ];
 
 const getTrailColor = (idOrIndex) => {
-  // Deterministic: hash the id or just cycle by index
+
   if (typeof idOrIndex === "number") {
     return trailColors[idOrIndex % trailColors.length];
   }
-  // hash string id
+
   let hash = 0;
   for (let i = 0; i < idOrIndex.length; i++) {
     hash = (hash * 31 + idOrIndex.charCodeAt(i)) >>> 0;
